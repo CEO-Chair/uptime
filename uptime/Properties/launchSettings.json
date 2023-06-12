@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "uptime": {
+      "commandName": "Project",
+      "commandLineArgs": "-a"
+    }
+  }
+}
