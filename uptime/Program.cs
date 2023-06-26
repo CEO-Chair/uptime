@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -16,7 +17,6 @@ internal partial class Program
             switch (s)
             {
                 case "-d":
-                case "-c":
                 case "-a":
                     break;
                 default:
@@ -25,6 +25,10 @@ internal partial class Program
                     return;
             }
         }
+
+        ulong tickCount = GetTickCount64();
+
+        DateTime startDate = DateTime.UtcNow - TimeSpan.FromMilliseconds(tickCount);
 
         if (args.Contains("-a"))
         {
@@ -36,88 +40,63 @@ internal partial class Program
 
             (int x, int y) = Console.GetCursorPosition();
 
-            ulong minDiff = 1000ul;
+            // We start with the stopwatch not measuring time so that
+            // we don't wait one second before printing the first time
+            Stopwatch sw = new Stopwatch();
 
-            ulong lastTickCount = 0;
             while (true)
             {
-                ulong tickCount = GetTickCount64();
-                if (tickCount - lastTickCount < minDiff)
+                if (sw.Elapsed.TotalSeconds < 1f && sw.IsRunning)
                 {
-                    Thread.Sleep(50);
+                    Thread.Sleep(70);
                     continue;
                 }
 
-                lastTickCount = tickCount;
+                sw.Restart();
 
                 Console.SetCursorPosition(x, y);
-                Console.WriteLine(FormatUptime(tickCount, args));
+                Console.WriteLine(FormatUptime(startDate, args));
             }
         }
         else
         {
-            Console.WriteLine(FormatUptime(GetTickCount64(), args));
+            Console.WriteLine(FormatUptime(startDate, args));
         }
     }
 
-    private static string FormatUptime(ulong tickCount, HashSet<string> args)
+    private static string FormatUptime(DateTime startTime, HashSet<string> args)
     {
-        TimeSpan time = TimeSpan.FromMilliseconds(tickCount);
-
-        StringBuilder output = new StringBuilder();
+        StringBuilder builder = new StringBuilder();
 
         if (args.Contains("-d"))
         {
-            DateTime date = DateTime.Now - time;
-
-            if (args.Contains("-c"))
-            {
-                output.Append($"{date:G}");
-            }
-            else
-            {
-                output.Append($"{date:F}");
-            }
+            builder.Append($"{startTime.ToLocalTime():F}");
+            return builder.ToString();
         }
-        else
+
+        TimeSpan time = DateTime.UtcNow - startTime;
+
+        if (time.Days > 0)
         {
-            if (args.Contains("-c"))
-            {
-
-                output.Append($"{time:c}");
-            }
-            else
-            {
-                if (time.Days >= 1)
-                {
-                    output.Append($"{time.Days} Day{Plural(time.Days)}");
-                }
-
-                if (time.Days >= 7)
-                {
-                    int weeks = time.Days / 7;
-                    int daysInToWeek = time.Days % 7;
-                    output.Append($" ({weeks} Week{Plural(weeks)} and {daysInToWeek} Day{Plural(daysInToWeek)})");
-                }
-
-                if (time.Hours > 0)
-                {
-                    output.Append($", {time.Hours} Hour{Plural(time.Hours)}");
-                }
-
-                if (time.Minutes > 0)
-                {
-                    output.Append($", {time.Minutes} Minute{Plural(time.Minutes)}");
-                }
-
-                if (time.Seconds > 0)
-                {
-                    output.Append($", {time.Seconds} Second{Plural(time.Seconds)}");
-                }
-            }
+            builder.Append($"{time.Days} Day{Plural(time.Days)}, ");
         }
 
-        return output.ToString();
+        if (time.Hours > 0)
+        {
+            builder.Append($"{time.Hours} Hour{Plural(time.Hours)}, ");
+        }
+
+        if (time.Minutes > 0)
+        {
+            builder.Append($"{time.Minutes} Minute{Plural(time.Minutes)}, ");
+        }
+
+        builder.Append($"{time.Seconds} Second{Plural(time.Seconds)}, ");
+
+        // Remove trailing ", "
+        builder.Length -= 2;
+
+        return builder.ToString();
     }
 
     private static string Plural<T>(T number) where T : INumber<T>
@@ -131,7 +110,6 @@ internal partial class Program
         Console.WriteLine();
         Console.WriteLine("Options: ");
         Console.WriteLine($"  -d               Display date of startup");
-        Console.WriteLine($"  -c               Display more compact date or time information");
         Console.WriteLine($"  -a               Continuously display uptime");
     }
 
