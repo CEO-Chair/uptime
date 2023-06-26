@@ -55,7 +55,7 @@ internal partial class Program
                 sw.Restart();
 
                 Console.SetCursorPosition(x, y);
-                Console.WriteLine(FormatUptime(startDate, args));
+                Console.Write(FormatUptime(startDate, args));
             }
         }
         else
